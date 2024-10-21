@@ -132,7 +132,7 @@ class _PaymentsPageState extends State<PaymentsPage> {
               'Logged in as: ${widget.username}',
               style: const TextStyle(
                 fontSize: 20,
-                color: Color.fromARGB(255, 19, 19, 240),
+                color: Color.fromARGB(255, 59, 173, 255),
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -141,7 +141,7 @@ class _PaymentsPageState extends State<PaymentsPage> {
               'Student ID: $studentP',
               style: const TextStyle(
                 fontSize: 20,
-                color: Color.fromARGB(255, 19, 19, 240),
+                color: Color.fromARGB(255, 59, 173, 255),
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -149,10 +149,10 @@ class _PaymentsPageState extends State<PaymentsPage> {
             Expanded(
               child: classEnrollmentData.isEmpty
                   ? const Center(
-                      child: Text('No class enrollment data available.',
+                      child: Text('Loading...',
                           style: TextStyle(
                               fontSize: 18,
-                              color: Color.fromARGB(255, 255, 64, 17))))
+                              color: Color.fromARGB(255, 86, 170, 255))))
                   : ListView.builder(
                       itemCount: classEnrollmentData.length,
                       itemBuilder: (context, index) {
@@ -461,10 +461,10 @@ class _PaymentDetailsPageState extends State<PaymentDetailsPage> {
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Card Number: ${payment['cardNumber']}'),
-                                Text('CVV: ${payment['cvv']}'),
                                 Text(
-                                    'Expiration Date: ${payment['expirationDate']}'),
+                                  'Card Number: ${payment['cardNumber'].replaceRange(0, payment['cardNumber'].length - 4, '*' * (payment['cardNumber'].length - 4))}',
+                                ),
+                                Text('full Name: ${payment['fullName']}'),
                                 Text(
                                     'Payment Amount: ${payment['paymentAmount']}'),
                                 Text('Month: ${payment['month']}'),

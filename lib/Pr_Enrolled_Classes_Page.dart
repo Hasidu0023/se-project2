@@ -767,6 +767,13 @@ class _ChatPageState extends State<ChatPage> {
     _messageController.clear(); // Clear the input field after sending
   }
 
+  void _deleteMessage(String documentId) async {
+    await FirebaseFirestore.instance
+        .collection('chat_St_Class')
+        .doc(documentId)
+        .delete();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -807,6 +814,7 @@ class _ChatPageState extends State<ChatPage> {
                     }
 
                     String message = messageData['Message'] ?? 'No message';
+                    String messageId = messages[index].id; // Get document ID
 
                     return Card(
                       margin:
@@ -817,8 +825,12 @@ class _ChatPageState extends State<ChatPage> {
                           message,
                           style: TextStyle(fontSize: 16),
                         ),
-                        // Optionally display who posted the message
-                        // subtitle: Text('Posted by: ${messageData['de']}'),
+                        trailing: IconButton(
+                          icon: Icon(Icons.delete, color: Colors.redAccent),
+                          onPressed: () {
+                            _deleteMessage(messageId); // Delete the message
+                          },
+                        ),
                       ),
                     );
                   },

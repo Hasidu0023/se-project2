@@ -84,7 +84,7 @@ class _AllClassesPageState extends State<AllClassesPage> {
                 child: PageView(
                   controller: _pageController,
                   children: [
-                    _buildImageWithFrame('assets/Home1.jpg'),
+                    _buildImageWithFrame('assets/Home1.jpeg'),
                     _buildImageWithFrame('assets/Home2.jpg'),
                     _buildImageWithFrame('assets/Home3.jpg'),
                   ],

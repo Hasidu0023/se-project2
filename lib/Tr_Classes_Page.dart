@@ -407,7 +407,6 @@ class _AttendancePageState extends State<AttendancePage> {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        // Enables scrolling for the full page
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -416,8 +415,7 @@ class _AttendancePageState extends State<AttendancePage> {
               _buildSearchFields(),
               SizedBox(height: 16),
               Container(
-                height: MediaQuery.of(context).size.height *
-                    0.7, // Limits list height for better scrolling
+                height: MediaQuery.of(context).size.height * 0.7,
                 child: _buildAttendanceList(),
               ),
             ],
@@ -532,9 +530,8 @@ class _AttendancePageState extends State<AttendancePage> {
         }
 
         return ListView.builder(
-          shrinkWrap:
-              true, // Allows the list to scroll within SingleChildScrollView
-          physics: NeverScrollableScrollPhysics(), // Prevents double scrolling
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
           itemCount: snapshot.data!.docs.length,
           itemBuilder: (context, index) {
             var attendanceData = snapshot.data!.docs[index];
@@ -585,9 +582,12 @@ class _AttendancePageState extends State<AttendancePage> {
     }
 
     if (startTime != null && endTime != null) {
+      var startTimeFormatted = _formatTime(startTime!);
+      var endTimeFormatted = _formatTime(endTime!);
+
       query = query
-          .where('Time', isGreaterThanOrEqualTo: _formatTime(startTime!))
-          .where('Time', isLessThanOrEqualTo: _formatTime(endTime!));
+          .where('Time', isGreaterThanOrEqualTo: startTimeFormatted)
+          .where('Time', isLessThanOrEqualTo: endTimeFormatted);
     }
 
     return query.snapshots();

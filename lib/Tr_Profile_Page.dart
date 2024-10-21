@@ -2,9 +2,9 @@ import 'dart:async'; // Import this for the Timer
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class ProfilePage extends StatefulWidget {
-  // Change to StatefulWidget to manage state
   final String username;
 
   ProfilePage({required this.username});
@@ -14,8 +14,10 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
+  final PageController _imagePageController = PageController();
+  final PageController _noticePageController = PageController();
+  int _currentImagePage = 0;
+  int _currentNoticePage = 0;
 
   final List<String> notices = [
     "Welcome to EduSync!",
@@ -23,25 +25,47 @@ class _ProfilePageState extends State<ProfilePage> {
     "Offers high-quality education.",
   ];
 
-  Timer? _timer;
+  // List of images for the carousel
+  final List<String> imagePaths = [
+    'assets/Home5.jpg',
+    'assets/Home6.jpg',
+    'assets/Home7.jpg',
+  ];
+
+  Timer? _imageTimer;
+  Timer? _noticeTimer;
 
   @override
   void initState() {
     super.initState();
-    // Set up a timer to change the page every 3 seconds
-    _timer = Timer.periodic(Duration(seconds: 3), (timer) {
-      if (_currentPage < notices.length - 1) {
-        _currentPage++;
+
+    // Set up a timer for the image carousel
+    _imageTimer = Timer.periodic(Duration(seconds: 3), (timer) {
+      if (_currentImagePage < imagePaths.length - 1) {
+        _currentImagePage++;
       } else {
-        _currentPage = 0;
+        _currentImagePage = 0;
       }
-      _pageController.jumpToPage(_currentPage);
+      _imagePageController.jumpToPage(_currentImagePage);
+    });
+
+    // Set up a timer for the notices
+    _noticeTimer = Timer.periodic(Duration(seconds: 3), (timer) {
+      if (_currentNoticePage < notices.length - 1) {
+        _currentNoticePage++;
+      } else {
+        _currentNoticePage = 0;
+      }
+      _noticePageController.jumpToPage(_currentNoticePage);
     });
   }
 
   @override
   void dispose() {
-    _timer?.cancel(); // Cancel the timer when the widget is disposed
+    _imageTimer?.cancel(); // Cancel the image timer
+    _noticeTimer?.cancel(); // Cancel the notice timer
+    _imagePageController.dispose(); // Dispose of the image controller
+    _noticePageController.dispose(); // Dispose of the notice controller
     super.dispose();
   }
 
@@ -49,48 +73,70 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final CollectionReference teachersCollection =
         FirebaseFirestore.instance.collection('teachers');
-
     final CollectionReference classesCollection =
         FirebaseFirestore.instance.collection('classes');
     final CollectionReference parentsCollection =
         FirebaseFirestore.instance.collection('parents');
     final CollectionReference studentRequestsCollection =
         FirebaseFirestore.instance.collection('studentRequests');
-
     final CollectionReference subjectsCollection =
         FirebaseFirestore.instance.collection('subjects');
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Teacher Profile',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 1.0,
-        iconTheme: IconThemeData(color: Colors.black),
+        title: Text('Teacher Dashboard'),
+        backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.logout, color: Colors.black),
+            onPressed: () {
+              SystemNavigator.pop(); // This will close the app
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
-        // Make the entire body scrollable
         child: Column(
           children: [
+            // Add the image carousel at the top
+            Container(
+              height: 200, // Set a height for the image carousel
+              child: PageView.builder(
+                controller: _imagePageController,
+                itemCount: imagePaths.length,
+                itemBuilder: (context, index) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage(imagePaths[index]),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
             // Add the notices section here
             Container(
-              height: 100, // Set a height for the notice section
+              height: 60, // Set a height for the notice section
+              width: double.infinity, // Ensures the container takes full width
               child: PageView.builder(
-                controller: _pageController,
+                controller: _noticePageController,
                 itemCount: notices.length,
                 itemBuilder: (context, index) {
                   return Container(
-                    color: Colors.lightBlue[
-                        100], // Set the background color to light blue
+                    color:
+                        Colors.lightBlue[100], // Background color to light blue
                     alignment: Alignment.center, // Center the text vertically
                     child: Text(
                       notices[index],
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.blueAccent, // Text color
+                        color: const Color.fromARGB(
+                            255, 19, 87, 195), // Text color
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -103,7 +149,6 @@ class _ProfilePageState extends State<ProfilePage> {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: _buildCountGrid(
-                  context,
                   classesCollection,
                   parentsCollection,
                   subjectsCollection,
@@ -112,8 +157,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             StreamBuilder<QuerySnapshot>(
               stream: teachersCollection
-                  .where('teacherID',
-                      isEqualTo: widget.username) // Use widget.username
+                  .where('teacherID', isEqualTo: widget.username)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -136,7 +180,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 return Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
-                    // Change ListView to Column to allow scrolling
                     children: [
                       Center(
                         child: CircleAvatar(
@@ -225,7 +268,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildCountGrid(
-      BuildContext context,
       CollectionReference classesCollection,
       CollectionReference parentsCollection,
       CollectionReference subjectsCollection,
@@ -240,7 +282,7 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildCountBox('Parents', parentsCollection),
           ],
         ),
-        SizedBox(height: 16),
+        SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -248,7 +290,7 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildCountBox('Teachers', teachersCollection),
           ],
         ),
-        SizedBox(height: 16),
+        SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -282,58 +324,48 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildCountBox(String label, CollectionReference collection,
+  Widget _buildCountBox(String title, CollectionReference collection,
       {bool isSingle = false}) {
-    return Expanded(
-      child: FutureBuilder<QuerySnapshot>(
-        future: collection.get(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return _buildCountCard(label, '...');
-          }
-          if (snapshot.hasError) {
-            return _buildCountCard(label, 'Error');
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _buildCountCard(label, '0');
-          }
-          return _buildCountCard(label, snapshot.data!.size.toString());
-        },
-      ),
-    );
-  }
-
-  Widget _buildCountCard(String label, String count) {
-    return Card(
-      elevation: 5,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
-      color: const Color.fromRGBO(68, 138, 255, 1),
-      child: Container(
-        height: 110,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              count,
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+    return FutureBuilder<QuerySnapshot>(
+      future: collection.get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return CircularProgressIndicator();
+        }
+        if (snapshot.hasError) {
+          return Text('Error');
+        }
+        var count = snapshot.data!.size;
+        return Expanded(
+          child: Card(
+            color: const Color.fromRGBO(68, 138, 255, 1),
+            elevation: 8,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Text(
+                    count.toString(),
+                    style: TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    title,
+                    style: TextStyle(fontSize: 16, color: Colors.black54),
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -404,6 +436,25 @@ class _UpdateProfilePageState extends State<UpdateProfilePage> {
 
   // Function to update Firestore
   Future<void> _updateTeacherData() async {
+    // Check if any field is empty
+    if (fnameController.text.isEmpty ||
+        lnameController.text.isEmpty ||
+        emailController.text.isEmpty ||
+        nicController.text.isEmpty ||
+        ageController.text.isEmpty ||
+        genderController.text.isEmpty ||
+        addressController.text.isEmpty ||
+        qualificationController.text.isEmpty ||
+        streamController.text.isEmpty ||
+        subjectNameController.text.isEmpty ||
+        telephoneController.text.isEmpty) {
+      // Show error message if any field is empty
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: Some fields are empty')),
+      );
+      return; // Exit the function if validation fails
+    }
+
     final CollectionReference teachersCollection =
         FirebaseFirestore.instance.collection('teachers');
 

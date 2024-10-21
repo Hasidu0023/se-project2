@@ -1096,6 +1096,14 @@ class _ChatPageState extends State<ChatPage> {
     _messageController.clear();
   }
 
+  // Function to delete the message from Firestore
+  void _deleteMessage(String documentId) async {
+    await FirebaseFirestore.instance
+        .collection('chat_St_Class')
+        .doc(documentId)
+        .delete();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1140,16 +1148,25 @@ class _ChatPageState extends State<ChatPage> {
                     }
 
                     String message = messageData['Message'] ?? 'No message';
+                    String messageId = messages[index].id; // Get document ID
 
                     return Card(
                       margin:
                           EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
                       elevation: 3,
-                      child: Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: Text(
-                          message,
-                          style: TextStyle(fontSize: 16),
+                      child: ListTile(
+                        title: Padding(
+                          padding: const EdgeInsets.all(10.0),
+                          child: Text(
+                            message,
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                        trailing: IconButton(
+                          icon: Icon(Icons.delete, color: Colors.redAccent),
+                          onPressed: () {
+                            _deleteMessage(messageId); // Delete message
+                          },
                         ),
                       ),
                     );
@@ -1177,8 +1194,7 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   ),
                 ),
-                SizedBox(
-                    width: 8.0), // Add spacing between TextField and IconButton
+                SizedBox(width: 8.0),
                 IconButton(
                   icon: Icon(Icons.send, color: Colors.lightBlueAccent),
                   onPressed: _sendMessage,

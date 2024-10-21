@@ -2,9 +2,9 @@ import 'dart:async'; // Import for Timer
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class ProfilePage extends StatefulWidget {
-  // Change to StatefulWidget
   final String username;
 
   ProfilePage({Key? key, required this.username}) : super(key: key);
@@ -14,8 +14,10 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final PageController _pageController = PageController();
-  late Timer _timer;
+  final PageController _imagePageController = PageController();
+  final PageController _noticePageController = PageController();
+  late Timer _imageTimer;
+  late Timer _noticeTimer;
 
   final List<String> notices = [
     "Welcome to EduSync, the largest online education platform!",
@@ -23,13 +25,30 @@ class _ProfilePageState extends State<ProfilePage> {
     "Join thousands of learners achieving their goals with us."
   ];
 
+  final List<String> imagePaths = [
+    'assets/Home5.jpg',
+    'assets/Home6.jpg',
+    'assets/Home7.jpg',
+  ];
+
   @override
   void initState() {
     super.initState();
-    // Timer to change the page every 5 seconds
-    _timer = Timer.periodic(Duration(seconds: 5), (timer) {
-      if (_pageController.hasClients) {
-        _pageController.nextPage(
+
+    // Timer to change the images every 5 seconds
+    _imageTimer = Timer.periodic(Duration(seconds: 5), (timer) {
+      if (_imagePageController.hasClients) {
+        _imagePageController.nextPage(
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+
+    // Timer to change the notices every 5 seconds
+    _noticeTimer = Timer.periodic(Duration(seconds: 5), (timer) {
+      if (_noticePageController.hasClients) {
+        _noticePageController.nextPage(
           duration: Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
@@ -39,8 +58,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   void dispose() {
-    _timer.cancel();
-    _pageController.dispose();
+    _imageTimer.cancel();
+    _noticeTimer.cancel();
+    _imagePageController.dispose();
+    _noticePageController.dispose();
     super.dispose();
   }
 
@@ -60,28 +81,45 @@ class _ProfilePageState extends State<ProfilePage> {
 
     return Scaffold(
       appBar: PreferredSize(
-        preferredSize: Size.fromHeight(50.0), // Set height of AppBar
+        preferredSize: Size.fromHeight(40.0), // Set height of AppBar
         child: AppBar(
-          title: Text(
-            "Parent Dashboard",
-            style: TextStyle(
-              fontSize: 25.0, // Set the font size
-              fontWeight: FontWeight.bold, // Set the font weight
-              color:
-                  const Color.fromARGB(255, 10, 11, 11), // Set the text color
-              letterSpacing: 1.5, // Adjust letter spacing
+          title: Text('Parent Dashboard'),
+          backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: Icon(Icons.logout, color: Colors.black),
+              onPressed: () {
+                SystemNavigator.pop(); // This will close the app
+              },
             ),
-          ),
-          backgroundColor: const Color.fromARGB(
-              255, 253, 254, 255), // Set AppBar color to light blue
+          ],
         ),
       ),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Column(
+            mainAxisSize: MainAxisSize.min, // Minimize column height
             children: [
               SizedBox(height: 10),
+
+              // Image Slider Section
+              Container(
+                height: 200, // Adjust height as needed
+                child: PageView.builder(
+                  controller: _imagePageController,
+                  itemCount: imagePaths.length,
+                  itemBuilder: (context, index) {
+                    return Image.asset(
+                      imagePaths[index],
+                      fit: BoxFit.cover,
+                    );
+                  },
+                ),
+              ),
+
+              SizedBox(height: 36),
 
               // Notice Section
               Container(
@@ -89,7 +127,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 color: const Color.fromARGB(
                     255, 164, 224, 250), // Light blue color
                 child: PageView.builder(
-                  controller: _pageController,
+                  controller: _noticePageController,
                   itemCount: notices.length,
                   itemBuilder: (context, index) {
                     return Center(
@@ -113,7 +151,7 @@ class _ProfilePageState extends State<ProfilePage> {
               SizedBox(height: 16),
               // Full-width box for the last item
               buildFullWidthBox(collections.last),
-              SizedBox(height: 20),
+              SizedBox(height: 50),
               // Profile Information Section
               StreamBuilder<QuerySnapshot>(
                 stream: parentCollection
@@ -144,7 +182,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       return Container(
                         // Wrap the entire column in a Container
                         width: double.infinity, // Set width to maximum
+                        padding: EdgeInsets.all(
+                            16.0), // Add padding around the container
                         child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.center, // Center the column
                           children: [
                             // Profile Picture Section
                             CircleAvatar(
@@ -153,27 +195,39 @@ class _ProfilePageState extends State<ProfilePage> {
                             ),
                             SizedBox(height: 20),
 
-                            // Parent Information
-                            Text(
-                              '${data['ParentName'] ?? 'N/A'}',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
+                            // Parent Information Card
+                            Card(
+                              elevation: 3,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              textAlign:
-                                  TextAlign.center, // Center align the text
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      '${data['ParentName'] ?? 'N/A'}',
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    SizedBox(height: 10),
+                                    Text(
+                                      'Parent ID: ${data['ParentID'] ?? 'N/A'}',
+                                      style: TextStyle(
+                                          fontSize: 16, color: Colors.grey),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                            SizedBox(height: 10),
-                            Text(
-                              'Parent ID: ${data['ParentID'] ?? 'N/A'}',
-                              style:
-                                  TextStyle(fontSize: 16, color: Colors.grey),
-                              textAlign:
-                                  TextAlign.center, // Center align the text
-                            ),
+                            SizedBox(height: 20),
                             Divider(thickness: 1, height: 40),
 
-                            // Student Information
+                            // Student Information Section
                             buildProfileSection("Student Information", [
                               'Student ID: ${data['StudentID'] ?? 'N/A'}',
                               'First Name: ${data['FirstName'] ?? 'N/A'}',
@@ -186,10 +240,9 @@ class _ProfilePageState extends State<ProfilePage> {
                               'Email: ${data['Email'] ?? 'N/A'}',
                               'Telephone: ${data['TelephoneNo'] ?? 'N/A'}',
                             ]),
+                            SizedBox(height: 20),
 
-                            SizedBox(height: 10),
-
-                            // Parent Information
+                            // Parent Information Section
                             buildProfileSection("Parent Information", [
                               'Parent NIC: ${data['ParentNIC'] ?? 'N/A'}',
                               'Parent Email: ${data['ParentEmail'] ?? 'N/A'}',
@@ -210,24 +263,18 @@ class _ProfilePageState extends State<ProfilePage> {
                                   ),
                                 );
                               },
-                              icon: Icon(Icons.edit,
-                                  color:
-                                      const Color.fromARGB(255, 246, 247, 253)),
+                              icon: Icon(Icons.edit, color: Colors.white),
                               label: Text(
                                 'Update Information',
                                 style: TextStyle(
-                                  color: const Color.fromARGB(
-                                      255, 250, 245, 245), // White text color
-                                ),
+                                    color: Colors.white), // White text color
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    const Color.fromARGB(255, 28, 115, 237),
+                                backgroundColor: Color.fromARGB(
+                                    255, 63, 136, 237), // Button color
                                 padding: EdgeInsets.symmetric(
-                                    vertical: 15, horizontal: 60),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
+                                    vertical: 15,
+                                    horizontal: 30), // Button padding
                               ),
                             ),
                           ],
@@ -237,6 +284,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   );
                 },
               ),
+              SizedBox(height: 20),
             ],
           ),
         ),
@@ -244,19 +292,22 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // Function to build the grid for the first few boxes
+  // Method to build info grid for the collection counts
   Widget buildInfoGrid(List<Map<String, dynamic>> collections) {
-    return GridView.count(
-      crossAxisCount: 2, // 2 boxes per row
-      shrinkWrap: true,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 2, // Adjust height of the boxes
-      physics: NeverScrollableScrollPhysics(),
-      children: collections.map((collection) {
+    return GridView.builder(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.5, // Aspect ratio for grid items
+        crossAxisSpacing: 16.0,
+        mainAxisSpacing: 16.0,
+      ),
+      shrinkWrap: true, // Prevents the grid from taking all available space
+      physics: NeverScrollableScrollPhysics(), // Disable grid scroll
+      itemCount: collections.length,
+      itemBuilder: (context, index) {
         return FutureBuilder<QuerySnapshot>(
           future: FirebaseFirestore.instance
-              .collection(collection['collection'])
+              .collection(collections[index]['collection'])
               .get(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -264,35 +315,43 @@ class _ProfilePageState extends State<ProfilePage> {
             }
 
             if (snapshot.hasError) {
-              return Center(child: Text('Error'));
+              return Center(child: Text('Error: ${snapshot.error}'));
             }
 
-            // Get document count
-            int count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+            final count = snapshot.data!.docs.length;
 
-            return Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              color: const Color.fromRGBO(68, 138, 255, 1),
+            return Container(
+              decoration: BoxDecoration(
+                color: const Color.fromRGBO(68, 138, 255, 1),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.2),
+                    spreadRadius: 2,
+                    blurRadius: 5,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      collection['name'],
+                      collections[index]['name'],
                       style: TextStyle(
-                          fontSize: 20,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold),
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     SizedBox(height: 10),
                     Text(
                       '$count',
                       style: TextStyle(
-                          fontSize: 30,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold),
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: const Color.fromARGB(255, 255, 255, 255),
+                      ),
                     ),
                   ],
                 ),
@@ -300,11 +359,11 @@ class _ProfilePageState extends State<ProfilePage> {
             );
           },
         );
-      }).toList(),
+      },
     );
   }
 
-  // Function to build the full-width box for the last item
+  // Method to build full-width box for a single item
   Widget buildFullWidthBox(Map<String, dynamic> collection) {
     return FutureBuilder<QuerySnapshot>(
       future:
@@ -315,40 +374,47 @@ class _ProfilePageState extends State<ProfilePage> {
         }
 
         if (snapshot.hasError) {
-          return Center(child: Text('Error'));
+          return Center(child: Text('Error: ${snapshot.error}'));
         }
 
-        // Get document count
-        int count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+        final count = snapshot.data!.docs.length;
 
-        return Card(
-          elevation: 4,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          color: const Color.fromRGBO(68, 138, 255, 1),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    collection['name'],
-                    style: TextStyle(
-                        fontSize: 20,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    '$count',
-                    style: TextStyle(
-                        fontSize: 30,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ],
+        return Container(
+          width: double.infinity, // Full width container
+          decoration: BoxDecoration(
+            color: const Color.fromRGBO(68, 138, 255, 1),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.2),
+                spreadRadius: 2,
+                blurRadius: 5,
+                offset: Offset(0, 3),
               ),
+            ],
+          ),
+          padding: EdgeInsets.all(16.0),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  collection['name'],
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: const Color.fromARGB(255, 255, 255, 255),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -356,32 +422,32 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // Function to build a section with title and information
-  Widget buildProfileSection(String title, List<String> info) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 10),
-          ...info.map((line) => Text(line)).toList(),
-        ],
-      ),
+  // Method to build profile sections
+  Widget buildProfileSection(String title, List<String> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 10),
+        ...items.map((item) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5.0),
+              child: Text(
+                item,
+                style: TextStyle(fontSize: 16),
+              ),
+            )),
+      ],
     );
   }
 }
+
+// UpdatePage is another screen where you can update profile information
+
+// UpdatePage class (as per your requirement)
+// Ensure to import required packages and implement the update functionality.
 
 class UpdatePage extends StatefulWidget {
   final String docId;
@@ -457,6 +523,30 @@ class _UpdatePageState extends State<UpdatePage> {
   }
 
   Future<void> updateData() async {
+    // Check for empty fields
+    if (firstNameController.text.isEmpty ||
+        lastNameController.text.isEmpty ||
+        academicYearController.text.isEmpty ||
+        streamController.text.isEmpty ||
+        genderController.text.isEmpty ||
+        ageController.text.isEmpty ||
+        studentNICController.text.isEmpty ||
+        emailController.text.isEmpty ||
+        telephoneController.text.isEmpty ||
+        parentNameController.text.isEmpty ||
+        parentNICController.text.isEmpty ||
+        parentEmailController.text.isEmpty ||
+        parentTelephoneController.text.isEmpty) {
+      // Show a SnackBar message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please fill in all fields.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return; // Stop further execution
+    }
+
     final CollectionReference parentCollection =
         FirebaseFirestore.instance.collection('studentRequests');
 
@@ -591,7 +681,7 @@ class _UpdatePageState extends State<UpdatePage> {
                     ),
                   ),
                 ),
-              )
+              ),
             ],
           ),
         ),

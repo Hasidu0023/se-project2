@@ -1,22 +1,27 @@
-import 'dart:async';
+import 'dart:async'; // Import for Timer
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class HomePage extends StatefulWidget {
   final String username;
 
-  HomePage({Key? key, required this.username}) : super(key: key);
+  HomePage({required this.username});
 
   @override
   _HomePageState createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  late PageController _pageController;
-  int _currentIndex = 0;
+  final PageController _imageController = PageController();
   Timer? _timer;
 
+  final List<String> _images = [
+    'assets/Home5.jpg',
+    'assets/Home6.jpg',
+    'assets/Home7.jpg',
+  ];
   final List<String> _notices = [
     "Welcome to EduSync, the largest online education platform.",
     "Offers high-quality education tailored to your needs.",
@@ -26,26 +31,29 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
-    _startTimer();
+    _startAutoSwipe(); // Start the auto-swipe when the widget is initialized
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
-    _pageController.dispose();
+    _timer?.cancel(); // Cancel the timer when disposing
+    _imageController.dispose(); // Dispose the controller
     super.dispose();
   }
 
-  void _startTimer() {
+  void _startAutoSwipe() {
     _timer = Timer.periodic(Duration(seconds: 3), (timer) {
-      if (_currentIndex < _notices.length - 1) {
-        _currentIndex++;
-      } else {
-        _currentIndex = 0;
+      if (_imageController.hasClients) {
+        int nextPage = _imageController.page!.toInt() + 1;
+        if (nextPage >= _images.length) {
+          nextPage = 0; // Loop back to the first image
+        }
+        _imageController.animateToPage(
+          nextPage,
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
       }
-      _pageController.animateToPage(_currentIndex,
-          duration: Duration(milliseconds: 300), curve: Curves.easeIn);
     });
   }
 
@@ -67,17 +75,46 @@ class _HomePageState extends State<HomePage> {
         title: Text('Student Dashboard'),
         backgroundColor: const Color.fromARGB(255, 255, 255, 255),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.logout, color: Colors.black),
+            onPressed: () {
+              SystemNavigator.pop(); // This will close the app
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
+        // Wrap the Column with SingleChildScrollView
         child: Column(
           children: [
+            // Image Carousel section
+            Container(
+              height: 200,
+              child: PageView.builder(
+                controller: _imageController,
+                itemCount: _images.length,
+                itemBuilder: (context, index) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage(_images[index]),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            SizedBox(height: 20),
+
             // Notices section
             Container(
               height: 80,
-              color: Colors
-                  .lightBlue[100], // Set the background color to light blue
+              color: Colors.lightBlue[100],
               child: PageView.builder(
-                controller: _pageController,
+                controller:
+                    PageController(), // Use a new controller for notices
                 itemCount: _notices.length,
                 itemBuilder: (context, index) {
                   return Container(
@@ -88,8 +125,7 @@ class _HomePageState extends State<HomePage> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color:
-                            const Color.fromARGB(255, 9, 72, 181), // Text color
+                        color: const Color.fromARGB(255, 9, 72, 181),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -98,33 +134,31 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-            SizedBox(height: 16), // Spacing between notices and other content
+            SizedBox(height: 10),
+
             // Display counts of different collections in boxes
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  // First row: Classes and Parents
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(child: _buildCountBox(classes, 'Classes')),
-                      SizedBox(width: 16), // Spacing between boxes
+                      SizedBox(width: 16),
                       Expanded(child: _buildCountBox(parents, 'Parents')),
                     ],
                   ),
-                  SizedBox(height: 16), // Spacing between rows
-                  // Second row: Subjects and Teachers
+                  SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(child: _buildCountBox(subjects, 'Subjects')),
-                      SizedBox(width: 16), // Spacing between boxes
+                      SizedBox(width: 16),
                       Expanded(child: _buildCountBox(teachers, 'Teachers')),
                     ],
                   ),
-                  SizedBox(height: 16), // Spacing between rows
-                  // Third row: Student Requests
+                  SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -135,7 +169,7 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
-            // The existing StreamBuilder for the student profile
+
             StreamBuilder<QuerySnapshot>(
               stream: studentRequests
                   .where('StudentID', isEqualTo: widget.username)
@@ -154,9 +188,9 @@ class _HomePageState extends State<HomePage> {
                 }
 
                 return ListView(
-                  padding: EdgeInsets.all(16),
-                  shrinkWrap: true, // Prevents overflow
-                  physics: NeverScrollableScrollPhysics(), // Disables scrolling
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(), // Disable scrolling
                   children: snapshot.data!.docs.map((doc) {
                     Map<String, dynamic> data =
                         doc.data() as Map<String, dynamic>;
@@ -165,14 +199,15 @@ class _HomePageState extends State<HomePage> {
                       margin: EdgeInsets.only(bottom: 16),
                       child: Card(
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        elevation: 5,
+                        elevation: 6,
                         child: Padding(
                           padding: const EdgeInsets.all(16),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // User profile and Student Info Section
                               Row(
                                 children: [
                                   CircleAvatar(
@@ -197,7 +232,9 @@ class _HomePageState extends State<HomePage> {
                                         Text(
                                           '${data['StudentID'] ?? 'N/A'}',
                                           style: TextStyle(
-                                              fontSize: 16, color: Colors.grey),
+                                            fontSize: 16,
+                                            color: Colors.grey,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -207,99 +244,104 @@ class _HomePageState extends State<HomePage> {
                               SizedBox(height: 16),
                               Divider(thickness: 1.5),
                               SizedBox(height: 16),
-                              Text(
-                                'Academic Year: ${data['AcademicYear'] ?? 'N/A'}',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Text(
-                                'Stream: ${data['Stream'] ?? 'N/A'}',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Text(
-                                'Gender: ${data['Gender'] ?? 'N/A'}',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Text(
-                                'Age: ${data['Age'] ?? 'N/A'}',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Text(
-                                'Student NIC: ${data['StudentNIC'] ?? 'N/A'}',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Text(
-                                'Email: ${data['Email'] ?? 'N/A'}',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Text(
-                                'Telephone No: ${data['TelephoneNo'] ?? 'N/A'}',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Text(
-                                'Address: ${data['Address'] ?? 'N/A'}',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Text(
-                                'School: ${data['School'] ?? 'N/A'}',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Parent Details:',
-                                style: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                'Parent Name: ${data['ParentName'] ?? 'N/A'}',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Text(
-                                'Parent ID: ${data['ParentID'] ?? 'N/A'}',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Text(
-                                'Parent Email: ${data['ParentEmail'] ?? 'N/A'}',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Text(
-                                'Parent Telephone: ${data['ParentTelephone'] ?? 'N/A'}',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              SizedBox(height: 16),
 
-                              // Add Update Information Button
-                              Center(
-                                child: ElevatedButton.icon(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => EditPage(
-                                          docId: doc.id,
-                                          data: data,
+                              // Student Information Section
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Academic Year: ${data['AcademicYear'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Stream: ${data['Stream'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Gender: ${data['Gender'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Age: ${data['Age'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Student NIC: ${data['StudentNIC'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Email: ${data['Email'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Telephone No: ${data['TelephoneNo'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'School: ${data['School'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Address: ${data['Address'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  SizedBox(height: 22),
+
+                                  // Parent Details
+                                  Text(
+                                    'Parent Name: ${data['ParentName'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Parent NIC: ${data['ParentNIC'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Parent Email: ${data['ParentEmail'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Parent Telephone: ${data['ParentTelephone'] ?? 'N/A'}',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+
+                                  // Update Profile Button
+                                  SizedBox(height: 20),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => EditPage(
+                                            data: data,
+                                            docId: doc.id,
+                                            studentData: const {},
+                                          ),
                                         ),
+                                      );
+                                    },
+                                    child: Text('Update Profile'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.lightBlueAccent,
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 36, vertical: 10),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(30),
                                       ),
-                                    );
-                                  },
-                                  label: const Text(
-                                    'Update Information',
-                                    style: TextStyle(
-                                      color: Colors
-                                          .white, // Set text color to white
-                                      fontSize: 15, // Set font size to 20
                                     ),
                                   ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor:
-                                        const Color.fromARGB(255, 53, 133, 241),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 20, vertical: 12),
-                                  ),
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                                ],
                               ),
                             ],
                           ),
@@ -321,50 +363,58 @@ class _HomePageState extends State<HomePage> {
       future: collection.get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(
-            height: 100,
-            decoration: BoxDecoration(
-              color: const Color.fromRGBO(68, 138, 255, 1),
-              borderRadius: BorderRadius.circular(12),
+          return Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
             ),
-            child: Center(child: CircularProgressIndicator()),
+            elevation: 4,
+            child: Container(
+              height: 80,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                color: Colors.grey[300],
+              ),
+              child: Center(child: CircularProgressIndicator()),
+            ),
           );
         }
 
         if (snapshot.hasError) {
-          return Text('Error: ${snapshot.error}');
+          return Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            elevation: 4,
+            child: Container(
+              height: 80,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                color: Colors.red[300],
+              ),
+              child: Center(child: Text('Error: ${snapshot.error}')),
+            ),
+          );
         }
 
-        final count = snapshot.data?.docs.length ?? 0;
-
-        return Container(
-          height: 100,
-          decoration: BoxDecoration(
-            color: const Color.fromRGBO(68, 138, 255, 1),
-            borderRadius: BorderRadius.circular(12),
+        return Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
           ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+          elevation: 4,
+          child: Container(
+            height: 80,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(15),
+              color: Colors.lightBlue[200],
+            ),
+            child: Center(
+              child: Text(
+                '$title: ${snapshot.data!.docs.length}',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
-                SizedBox(height: 8),
-                Text(
-                  '$count',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         );
@@ -377,7 +427,11 @@ class EditPage extends StatefulWidget {
   final String docId;
   final Map<String, dynamic> data;
 
-  EditPage({Key? key, required this.docId, required this.data})
+  EditPage(
+      {Key? key,
+      required this.docId,
+      required this.data,
+      required Map<String, dynamic> studentData})
       : super(key: key);
 
   @override
@@ -438,6 +492,25 @@ class _EditPageState extends State<EditPage> {
     schoolController.dispose();
     studentPasswordController.dispose();
     super.dispose();
+  }
+
+  bool _validateFields() {
+    if (firstNameController.text.isEmpty ||
+        lastNameController.text.isEmpty ||
+        academicYearController.text.isEmpty ||
+        streamController.text.isEmpty ||
+        emailController.text.isEmpty ||
+        telephoneController.text.isEmpty ||
+        genderController.text.isEmpty ||
+        ageController.text.isEmpty ||
+        studentNicController.text.isEmpty ||
+        parentNameController.text.isEmpty ||
+        addressController.text.isEmpty ||
+        schoolController.text.isEmpty ||
+        studentPasswordController.text.isEmpty) {
+      return false;
+    }
+    return true;
   }
 
   @override
@@ -531,27 +604,33 @@ class _EditPageState extends State<EditPage> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
-                          studentRequests.doc(widget.docId).update({
-                            'FirstName': firstNameController.text,
-                            'LastName': lastNameController.text,
-                            'AcademicYear': academicYearController.text,
-                            'Stream': streamController.text,
-                            'Email': emailController.text,
-                            'TelephoneNo': telephoneController.text,
-                            'Gender': genderController.text,
-                            'Age': ageController.text,
-                            'StudentNIC': studentNicController.text,
-                            'StudentPassword': studentPasswordController.text,
-                            'ParentName': parentNameController.text,
-                            'Address': addressController.text,
-                            'School': schoolController.text,
-                          });
+                          if (_validateFields()) {
+                            studentRequests.doc(widget.docId).update({
+                              'FirstName': firstNameController.text,
+                              'LastName': lastNameController.text,
+                              'AcademicYear': academicYearController.text,
+                              'Stream': streamController.text,
+                              'Email': emailController.text,
+                              'TelephoneNo': telephoneController.text,
+                              'Gender': genderController.text,
+                              'Age': ageController.text,
+                              'StudentNIC': studentNicController.text,
+                              'StudentPassword': studentPasswordController.text,
+                              'ParentName': parentNameController.text,
+                              'Address': addressController.text,
+                              'School': schoolController.text,
+                            });
 
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text('Data updated successfully')),
-                          );
-                          Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('Data updated successfully')),
+                            );
+                            Navigator.pop(context);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Some fields are empty!')),
+                            );
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
@@ -566,7 +645,10 @@ class _EditPageState extends State<EditPage> {
                             color: const Color.fromARGB(255, 255, 255, 255),
                           ),
                         ),
-                        child: Text('Update'),
+                        child: Text(
+                          'Update',
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
                     ),
                   ),
